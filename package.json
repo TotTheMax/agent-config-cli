@@ -1,6 +1,6 @@
 {
   "name": "@tothemax/agent-config-cli",
-  "version": "0.5.0",
+  "version": "0.6.0",
   "description": "CLI tool for setting up team-shared coding agent configurations",
   "type": "module",
   "bin": {
@@ -11,7 +11,9 @@
     "dev": "tsc --watch",
     "test": "vitest run",
     "test:watch": "vitest",
-    "e2e": "bash e2e/run-all.sh"
+    "e2e": "bash e2e/run-all.sh",
+    "e2e:pipeline": "bash e2e/pipeline.sh",
+    "e2e:remote": "bash e2e/remote.sh"
   },
   "engines": {
     "node": ">=18.0.0"

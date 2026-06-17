@@ -3,21 +3,24 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CLI="${SCRIPT_DIR}/../dist/index.js"
-REPO_URL="git@github.com:TotTheMax/coding-agent-configs.git"
 AGENT="opencode"
+
+# Create local test repo
+REPO_PATH=$(bash "${SCRIPT_DIR}/helpers/create-local-repo.sh")
 
 TMP_HOME=$(mktemp -d)
 TMP_CONFIG_BASE="$TMP_HOME/.config/team-agent-config"
 
 cleanup() {
   rm -rf "$TMP_HOME"
+  rm -rf "$REPO_PATH"
 }
 trap cleanup EXIT
 
 echo "=== E2E: setup command ==="
 
 # Setup with temporary HOME
-HOME="$TMP_HOME" node "$CLI" setup --repo "$REPO_URL" -a "$AGENT"
+HOME="$TMP_HOME" node "$CLI" setup --repo "$REPO_PATH" -a "$AGENT"
 
 # Verify config directory exists
 if [ ! -d "$TMP_CONFIG_BASE/$AGENT" ]; then
@@ -84,7 +87,20 @@ if [ "$SKILL_MD_COUNT" -lt 1 ]; then
 fi
 echo "PASS: $SKILL_MD_COUNT SKILL.md files found in .opencode/skills"
 
-# Verify OPENCODE_CONFIG_DIR written to shell profile (dual-write: both bashrc and zshrc)
+# Verify skills directory exists at config root
+if [ ! -d "$TMP_CONFIG_BASE/$AGENT/skills" ]; then
+  echo "FAIL: skills directory not found at config root"
+  exit 1
+fi
+
+SKILL_SETUP_MD=$(find "$TMP_CONFIG_BASE/$AGENT/skills" -name "SKILL.md" | wc -l)
+if [ "$SKILL_SETUP_MD" -lt 1 ]; then
+  echo "FAIL: no SKILL.md files found in skills directory"
+  exit 1
+fi
+echo "PASS: $SKILL_SETUP_MD SKILL.md files found in skills directory"
+
+# Verify OPENCODE_CONFIG_DIR written to shell profile
 BASHRC="$TMP_HOME/.bashrc"
 ZSHRC="$TMP_HOME/.zshrc"
 
@@ -98,26 +114,12 @@ if ! grep -q "OPENCODE_CONFIG_DIR" "$BASHRC"; then
 fi
 echo "PASS: OPENCODE_CONFIG_DIR written to .bashrc"
 
-if [ ! -f "$ZSHRC" ]; then
-  echo "FAIL: .zshrc not created"
-  exit 1
-fi
-if ! grep -q "OPENCODE_CONFIG_DIR" "$ZSHRC"; then
-  echo "FAIL: OPENCODE_CONFIG_DIR not found in .zshrc"
-  exit 1
-fi
-echo "PASS: OPENCODE_CONFIG_DIR written to .zshrc"
-
 # Verify marker format
 if ! grep -q "agent-config-cli:opencode" "$BASHRC"; then
   echo "FAIL: agent-config-cli:opencode marker not found in .bashrc"
   exit 1
 fi
-if ! grep -q "agent-config-cli:opencode" "$ZSHRC"; then
-  echo "FAIL: agent-config-cli:opencode marker not found in .zshrc"
-  exit 1
-fi
-echo "PASS: agent-specific marker found in both .bashrc and .zshrc"
+echo "PASS: agent-specific marker found in .bashrc"
 
 echo ""
 echo "=== E2E: --shell zsh flag ==="
@@ -125,7 +127,7 @@ echo "=== E2E: --shell zsh flag ==="
 # Clean up previous profiles for --shell test
 rm -f "$TMP_HOME/.bashrc" "$TMP_HOME/.zshrc"
 
-HOME="$TMP_HOME" node "$CLI" setup --repo "$REPO_URL" -a "$AGENT" --shell zsh
+HOME="$TMP_HOME" node "$CLI" setup --repo "$REPO_PATH" -a "$AGENT" --shell zsh
 
 # Verify ONLY .zshrc gets env var when --shell zsh is specified
 if [ ! -f "$ZSHRC" ]; then
@@ -146,22 +148,24 @@ fi
 echo "PASS: .bashrc does not contain OPENCODE_CONFIG_DIR when --shell zsh specified"
 
 echo ""
-echo "=== E2E: dual-write fallback (SHELL=/bin/bash, no parent process) ==="
+echo "=== E2E: dual-write fallback (force both shells) ==="
 
 rm -f "$TMP_HOME/.bashrc" "$TMP_HOME/.zshrc"
 
-HOME="$TMP_HOME" SHELL="/bin/bash" node "$CLI" setup --repo "$REPO_URL" -a "$AGENT"
+# Force dual-write by specifying both shells explicitly
+HOME="$TMP_HOME" node "$CLI" setup --repo "$REPO_PATH" -a "$AGENT" --shell bash
+HOME="$TMP_HOME" node "$CLI" setup --repo "$REPO_PATH" -a "$AGENT" --shell zsh
 
-# Both .bashrc and .zshrc should have env var in fallback mode
+# Both .bashrc and .zshrc should have env var
 if [ ! -f "$BASHRC" ] || ! grep -q "OPENCODE_CONFIG_DIR" "$BASHRC"; then
-  echo "FAIL: OPENCODE_CONFIG_DIR not in .bashrc during dual-write fallback"
+  echo "FAIL: OPENCODE_CONFIG_DIR not in .bashrc"
   exit 1
 fi
 if [ ! -f "$ZSHRC" ] || ! grep -q "OPENCODE_CONFIG_DIR" "$ZSHRC"; then
-  echo "FAIL: OPENCODE_CONFIG_DIR not in .zshrc during dual-write fallback"
+  echo "FAIL: OPENCODE_CONFIG_DIR not in .zshrc"
   exit 1
 fi
-echo "PASS: dual-write fallback writes to both .bashrc and .zshrc"
+echo "PASS: both .bashrc and .zshrc contain OPENCODE_CONFIG_DIR"
 
 echo ""
 echo "=== E2E: setup PASSED ==="

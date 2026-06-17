@@ -80,6 +80,9 @@ Your team config repository should be organized by agent type, each in its own d
 │   │   └── rules/             # coding rules for opencode
 │   │       └── code-style.md
 │   └── setup.sh               # optional post-install script
+├── skills/                    # shared agent skills (copied to config directory)
+│   └── setup-team-config/
+│       └── SKILL.md
 ├── trae/                      # future: trae cli configuration
 │   └── ...
 ```

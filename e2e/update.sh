@@ -3,21 +3,24 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 CLI="${SCRIPT_DIR}/../dist/index.js"
-REPO_URL="git@github.com:TotTheMax/coding-agent-configs.git"
 AGENT="opencode"
+
+# Create local test repo
+REPO_PATH=$(bash "${SCRIPT_DIR}/helpers/create-local-repo.sh")
 
 TMP_HOME=$(mktemp -d)
 TMP_CONFIG_BASE="$TMP_HOME/.config/team-agent-config"
 
 cleanup() {
   rm -rf "$TMP_HOME"
+  rm -rf "$REPO_PATH"
 }
 trap cleanup EXIT
 
 echo "=== E2E: update command ==="
 
 # First: setup
-HOME="$TMP_HOME" node "$CLI" setup --repo "$REPO_URL" -a "$AGENT"
+HOME="$TMP_HOME" node "$CLI" setup --repo "$REPO_PATH" -a "$AGENT"
 
 # Verify setup worked
 if [ ! -f "$TMP_CONFIG_BASE/$AGENT/opencode.json" ]; then
@@ -30,7 +33,7 @@ echo "PASS: setup created config"
 ORIGINAL=$(cat "$TMP_CONFIG_BASE/$AGENT/opencode.json")
 
 # Now: update
-HOME="$TMP_HOME" node "$CLI" update --repo "$REPO_URL" -a "$AGENT"
+HOME="$TMP_HOME" node "$CLI" update --repo "$REPO_PATH" -a "$AGENT"
 
 # Verify config directory still exists
 if [ ! -d "$TMP_CONFIG_BASE/$AGENT" ]; then

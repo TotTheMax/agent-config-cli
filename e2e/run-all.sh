@@ -22,6 +22,7 @@ run_test() {
 
 run_test "setup" "$SCRIPT_DIR/setup.sh"
 run_test "update" "$SCRIPT_DIR/update.sh"
+run_test "pipeline" "$SCRIPT_DIR/pipeline.sh"
 
 echo ""
 echo "========================================"
